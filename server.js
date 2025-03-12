@@ -28,7 +28,7 @@ wss.on('connection', (ws) => {
       item: {
         type: 'message',
         role: 'user',
-        content: 'Start a conversation',
+        content: [{ type: 'text', text: 'Start a conversation' }],
       },
     }));
   });
@@ -59,7 +59,7 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (message) => {
     try {
-      console.log('Received audio message from client:', message.toString().substring(0, 100)); // Log first 100 chars
+      console.log('Received audio message from client:', message.toString().substring(0, 100));
       const audioData = JSON.parse(message);
       if (audioData.type === 'audio') {
         console.log('Sending audio to OpenAI:', audioData.data.substring(0, 20) + '...');
