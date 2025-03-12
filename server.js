@@ -1,43 +1,53 @@
 const express = require('express');
 const WebSocket = require('ws');
 const { createServer } = require('http');
+const OpenAI = require('openai');
 
 const app = express();
 const server = createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Mock OpenAI client (replace with real API later)
-const openai = {
-  connect: () => Promise.resolve(),
-  on: (event, callback) => {
-    if (event === 'message') {
-      setTimeout(() => callback('Mock AI response: What part is here now?'), 1000);
-    }
-  },
-  sendAudio: (data) => Promise.resolve(console.log('Audio received:', data)),
-  disconnect: () => console.log('OpenAI disconnected'),
-};
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
-  openai.connect().then(() => {
-    openai.on('message', (message) => {
-      ws.send(JSON.stringify({ type: 'ai_response', data: message }));
+  let connection;
+  try {
+    connection = openai.beta.realtime.connect({
+      model: 'gpt-4o-realtime-preview-2024-12-17',
     });
-  });
 
-  ws.on('message', async (message) => {
-    const audioData = JSON.parse(message);
-    if (audioData.type === 'audio') {
-      await openai.sendAudio(audioData.data);
-    }
-  });
+    connection.on('response.text.delta', (event) => {
+      ws.send(JSON.stringify({ type: 'ai_response', data: event.delta }));
+    });
 
-  ws.on('close', () => {
-    openai.disconnect();
-    console.log('Client disconnected');
-  });
+    connection.on('error', (error) => {
+      console.error('OpenAI Realtime API error:', error);
+      ws.send(JSON.stringify({ type: 'error', data: error.message }));
+    });
+
+    ws.on('message', async (message) => {
+      const audioData = JSON.parse(message);
+      if (audioData.type === 'audio') {
+        await connection.send({
+          type: 'input_audio',
+          audio: audioData.data, // Base64 audio
+        });
+      }
+    });
+
+    ws.on('close', () => {
+      connection.close();
+      console.log('Client disconnected');
+    });
+  } catch (error) {
+    console.error('Failed to connect to OpenAI Realtime API:', error);
+    ws.send(JSON.stringify({ type: 'error', data: error.message }));
+    ws.close();
+  }
 });
 
 app.get('/health', (req, res) => res.send('OK'));
