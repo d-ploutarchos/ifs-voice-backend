@@ -12,6 +12,8 @@ wss.on('connection', (ws) => {
     },
   });
 
+  let isResponseActive = false;
+
   openaiWs.on('open', () => {
     console.log('Connected to OpenAI Realtime API');
   });
@@ -21,6 +23,8 @@ wss.on('connection', (ws) => {
     console.log('Received from OpenAI:', response);
     if (response.type === 'response.text.delta') {
       ws.send(JSON.stringify({ type: 'ai_response', data: response.delta }));
+    } else if (response.type === 'response.done') {
+      isResponseActive = false; // Reset flag when response is done
     }
   });
 
@@ -50,8 +54,14 @@ wss.on('connection', (ws) => {
         audio: audioBase64,
       }));
       console.log('Audio buffer committed to OpenAI');
-      openaiWs.send(JSON.stringify({ type: 'response.create' }));
-      console.log('Response requested from OpenAI');
+
+      if (!isResponseActive) {
+        isResponseActive = true;
+        openaiWs.send(JSON.stringify({ type: 'response.create' }));
+        console.log('Response requested from OpenAI');
+      } else {
+        console.log('Response already active, waiting for completion');
+      }
     }
   });
 
