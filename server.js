@@ -14,7 +14,7 @@ const openai = new OpenAI({
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
-  // Connect to OpenAI Realtime API WebSocket with model parameter
+  // Connect to OpenAI Realtime API WebSocket
   const openaiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -24,11 +24,7 @@ wss.on('connection', (ws) => {
 
   openaiWs.on('open', () => {
     console.log('Connected to OpenAI Realtime API');
-    // Send initial session start message
-    openaiWs.send(JSON.stringify({
-      type: 'session.start',
-      language: 'en-US',
-    }));
+    // No session.start needed—session.created event confirms session is active
   });
 
   openaiWs.on('message', (message) => {
@@ -37,6 +33,8 @@ wss.on('connection', (ws) => {
       console.log('Received from OpenAI:', data);
       if (data.type === 'response.audio.delta' || data.type === 'response.text.delta') {
         ws.send(JSON.stringify({ type: 'ai_response', data: data.delta }));
+      } else if (data.type === 'response.done') {
+        ws.send(JSON.stringify({ type: 'ai_response_complete', data: data.response.output }));
       }
     } catch (error) {
       console.error('Error parsing OpenAI message:', error);
@@ -57,9 +55,14 @@ wss.on('connection', (ws) => {
     try {
       const audioData = JSON.parse(message);
       if (audioData.type === 'audio') {
+        // Append audio to OpenAI's input buffer
         openaiWs.send(JSON.stringify({
-          type: 'input_audio',
-          audio: audioData.data,  // Base64 audio
+          type: 'input_audio_buffer.append',
+          audio: audioData.data,  // Base64 audio (PCM16 format expected)
+        }));
+        // Commit the audio buffer to process it
+        openaiWs.send(JSON.stringify({
+          type: 'input_audio_buffer.commit',
         }));
       }
     } catch (error) {
