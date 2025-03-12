@@ -59,16 +59,20 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (message) => {
     try {
-      console.log('Received audio message from client:', message.toString().substring(0, 100));
+      console.log('Raw audio message received:', message.toString().substring(0, 200)); // Log more chars for debugging
       let audioData;
       try {
         audioData = JSON.parse(message.toString());
+        console.log('Parsed audio data:', audioData);
       } catch (parseError) {
         console.error('Failed to parse audio message:', parseError);
-        throw new Error('Invalid audio message format');
+        throw new Error('Invalid JSON format: ' + parseError.message);
       }
-      if (audioData.type !== 'audio' || !audioData.data) {
+      if (!audioData || typeof audioData !== 'object' || !audioData.type || !audioData.data) {
         throw new Error('Invalid audio message: missing type or data');
+      }
+      if (audioData.type !== 'audio') {
+        throw new Error('Invalid message type: expected "audio", got "' + audioData.type + '"');
       }
       if (openaiWs.readyState !== WebSocket.OPEN) {
         console.error('OpenAI WebSocket is not open:', openaiWs.readyState);
@@ -88,7 +92,7 @@ wss.on('connection', (ws) => {
       }));
       console.log('Response requested from OpenAI');
     } catch (error) {
-      console.error('Error processing audio message:', error);
+      console.error('Error processing audio message:', error.message);
       ws.send(JSON.stringify({ type: 'error', data: error.message }));
     }
   });
