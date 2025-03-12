@@ -18,7 +18,7 @@ wss.on('connection', (ws) => {
   const openaiWs = new WebSocket('wss://api.openai.com/v1/realtime', {
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      'OpenAI-Beta': 'realtime-v1',  // Hypothetical beta header
+      'openai-beta': 'realtime=v1',  // Corrected header format
     },
   });
 
