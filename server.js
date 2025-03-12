@@ -21,10 +21,15 @@ wss.on('connection', (ws) => {
   openaiWs.on('message', (data) => {
     const response = JSON.parse(data);
     console.log('Received from OpenAI:', response);
+    if (response.type === 'response.created') {
+      isResponseActive = true;
+      console.log('Response active state set to:', isResponseActive);
+    } else if (response.type === 'response.done') {
+      isResponseActive = false;
+      console.log('Response active state set to:', isResponseActive);
+    }
     if (response.type === 'response.text.delta') {
       ws.send(JSON.stringify({ type: 'ai_response', data: response.delta }));
-    } else if (response.type === 'response.done') {
-      isResponseActive = false; // Reset flag when response is done
     }
   });
 
@@ -57,10 +62,10 @@ wss.on('connection', (ws) => {
 
       if (!isResponseActive) {
         isResponseActive = true;
+        console.log('Requesting response, setting active state to:', isResponseActive);
         openaiWs.send(JSON.stringify({ type: 'response.create' }));
-        console.log('Response requested from OpenAI');
       } else {
-        console.log('Response already active, waiting for completion');
+        console.log('Response already active, skipping request');
       }
     }
   });
