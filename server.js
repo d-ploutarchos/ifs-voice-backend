@@ -14,20 +14,19 @@ const openai = new OpenAI({
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
-  // Connect to OpenAI Realtime API WebSocket manually
-  const openaiWs = new WebSocket('wss://api.openai.com/v1/realtime', {
+  // Connect to OpenAI Realtime API WebSocket with model parameter
+  const openaiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      'openai-beta': 'realtime=v1',  // Corrected header format
+      'openai-beta': 'realtime=v1',
     },
   });
 
   openaiWs.on('open', () => {
     console.log('Connected to OpenAI Realtime API');
-    // Send initial configuration (adjust based on OpenAI docs)
+    // Send initial session start message
     openaiWs.send(JSON.stringify({
       type: 'session.start',
-      model: 'gpt-4o-realtime-preview-2024-12-17', // Hypothetical model
       language: 'en-US',
     }));
   });
