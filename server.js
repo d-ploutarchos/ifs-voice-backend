@@ -14,7 +14,6 @@ const openai = new OpenAI({
 wss.on('connection', (ws) => {
   console.log('Client connected');
 
-  // Connect to OpenAI Realtime API WebSocket
   const openaiWs = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -24,7 +23,14 @@ wss.on('connection', (ws) => {
 
   openaiWs.on('open', () => {
     console.log('Connected to OpenAI Realtime API');
-    // No session.start needed—session.created event confirms session is active
+    openaiWs.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: 'Start a conversation',
+      },
+    }));
   });
 
   openaiWs.on('message', (message) => {
@@ -53,20 +59,25 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (message) => {
     try {
+      console.log('Received audio message from client:', message.toString().substring(0, 100)); // Log first 100 chars
       const audioData = JSON.parse(message);
       if (audioData.type === 'audio') {
-        // Append audio to OpenAI's input buffer
+        console.log('Sending audio to OpenAI:', audioData.data.substring(0, 20) + '...');
         openaiWs.send(JSON.stringify({
           type: 'input_audio_buffer.append',
-          audio: audioData.data,  // Base64 audio (PCM16 format expected)
+          audio: audioData.data,
         }));
-        // Commit the audio buffer to process it
         openaiWs.send(JSON.stringify({
           type: 'input_audio_buffer.commit',
         }));
+        console.log('Audio buffer committed to OpenAI');
+        openaiWs.send(JSON.stringify({
+          type: 'response.create',
+        }));
+        console.log('Response requested from OpenAI');
       }
     } catch (error) {
-      console.error('Error sending audio to OpenAI:', error);
+      console.error('Error processing audio message:', error);
       ws.send(JSON.stringify({ type: 'error', data: error.message }));
     }
   });
