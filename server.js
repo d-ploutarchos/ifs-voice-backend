@@ -68,20 +68,22 @@ wss.on('connection', (ws) => {
         console.error('Failed to parse audio message:', parseError);
         throw new Error('Invalid JSON format: ' + parseError.message);
       }
-      if (!audioData || typeof audioData !== 'object' || !('type' in audioData) || !('data' in audioData)) {
-        throw new Error('Invalid audio message: missing type or data');
-      }
-      if (audioData.type !== 'audio') {
-        throw new Error('Invalid message type: expected "audio", got "' + audioData.type + '"');
+      // Map the incoming message to the expected format
+      const normalizedData = {
+        type: audioData.type || 'audio', // Default to 'audio' if type is missing
+        data: audioData.audio || audioData.data, // Use 'audio' or 'data' field
+      };
+      if (!normalizedData.data) {
+        throw new Error('Invalid audio message: missing audio/data field');
       }
       if (openaiWs.readyState !== WebSocket.OPEN) {
         console.error('OpenAI WebSocket is not open:', openaiWs.readyState);
         throw new Error('OpenAI WebSocket connection closed');
       }
-      console.log('Sending audio to OpenAI:', audioData.data.substring(0, 20) + '...');
+      console.log('Sending audio to OpenAI:', normalizedData.data.substring(0, 20) + '...');
       openaiWs.send(JSON.stringify({
         type: 'input_audio_buffer.append',
-        audio: audioData.data,
+        audio: normalizedData.data,
       }));
       openaiWs.send(JSON.stringify({
         type: 'input_audio_buffer.commit',
