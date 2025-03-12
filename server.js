@@ -60,22 +60,33 @@ wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
     try {
       console.log('Received audio message from client:', message.toString().substring(0, 100));
-      const audioData = JSON.parse(message);
-      if (audioData.type === 'audio') {
-        console.log('Sending audio to OpenAI:', audioData.data.substring(0, 20) + '...');
-        openaiWs.send(JSON.stringify({
-          type: 'input_audio_buffer.append',
-          audio: audioData.data,
-        }));
-        openaiWs.send(JSON.stringify({
-          type: 'input_audio_buffer.commit',
-        }));
-        console.log('Audio buffer committed to OpenAI');
-        openaiWs.send(JSON.stringify({
-          type: 'response.create',
-        }));
-        console.log('Response requested from OpenAI');
+      let audioData;
+      try {
+        audioData = JSON.parse(message.toString());
+      } catch (parseError) {
+        console.error('Failed to parse audio message:', parseError);
+        throw new Error('Invalid audio message format');
       }
+      if (audioData.type !== 'audio' || !audioData.data) {
+        throw new Error('Invalid audio message: missing type or data');
+      }
+      if (openaiWs.readyState !== WebSocket.OPEN) {
+        console.error('OpenAI WebSocket is not open:', openaiWs.readyState);
+        throw new Error('OpenAI WebSocket connection closed');
+      }
+      console.log('Sending audio to OpenAI:', audioData.data.substring(0, 20) + '...');
+      openaiWs.send(JSON.stringify({
+        type: 'input_audio_buffer.append',
+        audio: audioData.data,
+      }));
+      openaiWs.send(JSON.stringify({
+        type: 'input_audio_buffer.commit',
+      }));
+      console.log('Audio buffer committed to OpenAI');
+      openaiWs.send(JSON.stringify({
+        type: 'response.create',
+      }));
+      console.log('Response requested from OpenAI');
     } catch (error) {
       console.error('Error processing audio message:', error);
       ws.send(JSON.stringify({ type: 'error', data: error.message }));
