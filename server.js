@@ -28,7 +28,7 @@ wss.on('connection', (ws) => {
       item: {
         type: 'message',
         role: 'user',
-        content: [{ type: 'text', text: 'Start a conversation' }],
+        content: [{ type: 'input_text', text: 'Start a conversation' }],
       },
     }));
   });
