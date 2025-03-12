@@ -59,7 +59,7 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (message) => {
     try {
-      console.log('Raw audio message received:', message.toString().substring(0, 200)); // Log more chars for debugging
+      console.log('Raw audio message received:', message.toString().substring(0, 200));
       let audioData;
       try {
         audioData = JSON.parse(message.toString());
@@ -68,7 +68,7 @@ wss.on('connection', (ws) => {
         console.error('Failed to parse audio message:', parseError);
         throw new Error('Invalid JSON format: ' + parseError.message);
       }
-      if (!audioData || typeof audioData !== 'object' || !audioData.type || !audioData.data) {
+      if (!audioData || typeof audioData !== 'object' || !('type' in audioData) || !('data' in audioData)) {
         throw new Error('Invalid audio message: missing type or data');
       }
       if (audioData.type !== 'audio') {
