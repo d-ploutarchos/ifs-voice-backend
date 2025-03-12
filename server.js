@@ -49,14 +49,22 @@ wss.on('connection', (ws) => {
 
     if (parsedMessage.type === 'audio') {
       const audioBase64 = parsedMessage.data;
-      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      let audioBuffer = Buffer.from(audioBase64, 'base64');
       console.log('Received audio buffer length:', audioBuffer.length);
+
+      // Truncate if buffer exceeds 2 seconds (32000 bytes for 16kHz mono)
+      const maxExpectedLength = 32000; // 2 seconds
+      if (audioBuffer.length > maxExpectedLength) {
+        console.warn('Buffer too large, truncating to', maxExpectedLength, 'bytes');
+        audioBuffer = audioBuffer.slice(0, maxExpectedLength);
+        console.log('Truncated audio buffer length:', audioBuffer.length);
+      }
       console.log('First 20 bytes of received audio (hex):', audioBuffer.slice(0, 20).toString('hex'));
 
       console.log('Sending audio to OpenAI:', audioBase64.substring(0, 20) + '...');
       openaiWs.send(JSON.stringify({
         type: 'input_audio_buffer.append',
-        audio: audioBase64,
+        audio: audioBuffer.toString('base64'),
       }));
       console.log('Audio buffer committed to OpenAI');
 
